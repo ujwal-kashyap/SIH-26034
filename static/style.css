@@ -53,37 +53,54 @@ h2 {
 
 .card {
     background: white;
+
     padding: 24px;
+
     margin-bottom: 20px;
+
     border-radius: 15px;
+
     box-shadow:
         0 4px 20px
-        rgba(0,0,0,0.05);
+        rgba(0, 0, 0, 0.05);
 }
 
 label {
     display: block;
+
     margin: 15px 0 7px;
+
     font-weight: 700;
 }
 
 select,
 input[type="file"] {
     width: 100%;
+
     padding: 12px;
+
     border: 1px solid #d7ded9;
+
     border-radius: 9px;
+
     background: white;
 }
 
 button {
     margin-top: 15px;
+
     background: #059669;
+
     color: white;
+
     border: 0;
+
     padding: 13px 22px;
+
     border-radius: 9px;
+
     font-weight: 800;
+
     cursor: pointer;
 }
 
@@ -91,12 +108,21 @@ button:hover {
     background: #047857;
 }
 
+/* ----------------------------------------
+   NOTICE
+---------------------------------------- */
+
 .notice {
     margin-top: 18px;
+
     padding: 14px;
+
     background: #effcf6;
+
     border-left: 4px solid #10b981;
+
     border-radius: 8px;
+
     line-height: 1.5;
 }
 
@@ -104,50 +130,73 @@ button:hover {
     border-left: 5px solid #dc2626;
 }
 
+/* ----------------------------------------
+   RESULT HEADER
+---------------------------------------- */
+
 .result-header {
     display: flex;
+
     justify-content: space-between;
+
     align-items: center;
 }
 
 .score {
     font-size: 36px;
+
     font-weight: 900;
+
     color: #059669;
 }
 
 .score small {
     display: block;
+
     font-size: 11px;
+
     color: #6b7280;
+
     text-align: center;
 }
 
+/* ----------------------------------------
+   STATS
+---------------------------------------- */
+
 .stats {
     display: grid;
+
     grid-template-columns:
         repeat(
             4,
             1fr
         );
+
     gap: 12px;
+
     margin-top: 20px;
 }
 
 .stats > div {
     background: #f8faf9;
+
     border: 1px solid #e5e7eb;
+
     padding: 18px;
+
     border-radius: 10px;
 }
 
 .stats strong {
     display: block;
+
     font-size: 27px;
 }
 
 .stats span {
     color: #6b7280;
+
     font-size: 13px;
 }
 
@@ -163,37 +212,103 @@ button:hover {
     color: #dc2626;
 }
 
+/* ----------------------------------------
+   PDF BUTTON
+---------------------------------------- */
+
+.pdf-action {
+    margin-top: 20px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: flex-start;
+}
+
+.pdf-button {
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 8px;
+
+    background: #064e3b;
+
+    color: white;
+
+    text-decoration: none;
+
+    padding: 12px 20px;
+
+    border-radius: 9px;
+
+    font-weight: 800;
+
+    cursor: pointer;
+
+    transition:
+        background 0.2s ease,
+        transform 0.2s ease;
+}
+
+.pdf-button:hover {
+    background: #047857;
+
+    transform: translateY(-1px);
+}
+
+.pdf-button:active {
+    transform: translateY(0);
+}
+
+/* ----------------------------------------
+   DETECTED FIELDS
+---------------------------------------- */
+
 .grid {
     display: grid;
+
     grid-template-columns:
         repeat(
             auto-fit,
             minmax(240px, 1fr)
         );
+
     gap: 12px;
 }
 
 .field {
     border: 1px solid #e5e7eb;
+
     padding: 15px;
+
     border-radius: 10px;
 }
 
 .field span {
     display: block;
+
     color: #6b7280;
+
     font-size: 13px;
+
     margin-bottom: 5px;
 }
 
 .field strong {
     display: block;
+
     word-break: break-word;
 }
 
 .field small {
     display: block;
+
     margin-top: 8px;
+
     color: #6b7280;
 }
 
@@ -201,37 +316,60 @@ button:hover {
     color: #9ca3af;
 }
 
+/* ----------------------------------------
+   RULE SCREENING
+---------------------------------------- */
+
 .rule {
     padding: 16px;
+
     margin: 10px 0;
+
     border-radius: 10px;
+
     border-left: 5px solid;
 }
 
 .rule-good {
     background: #ecfdf5;
+
     border-color: #059669;
 }
 
 .rule-review {
     background: #fffbeb;
+
     border-color: #d97706;
+}
+
+.rule-violation {
+    background: #fef2f2;
+
+    border-color: #dc2626;
 }
 
 .rule-neutral {
     background: #f9fafb;
+
     border-color: #9ca3af;
 }
 
 .rule-main {
     display: flex;
+
     justify-content: space-between;
+
     gap: 15px;
 }
 
 .rule-main span {
     font-size: 12px;
+
     color: #4f46e5;
+}
+
+.rule-status {
+    margin-top: 6px;
 }
 
 .rule p {
@@ -246,46 +384,89 @@ button:hover {
     color: #d97706;
 }
 
+.violation {
+    color: #dc2626;
+}
+
 .neutral {
     color: #6b7280;
 }
 
 .evidence {
     background: #f3f4f6;
+
     padding: 10px;
+
     border-radius: 7px;
+
     font-family: monospace;
+
     font-size: 13px;
+
+    word-break: break-word;
 }
+
+/* ----------------------------------------
+   OCR
+---------------------------------------- */
 
 pre {
     background: #111827;
+
     color: #e5e7eb;
+
     padding: 18px;
+
     border-radius: 10px;
+
     white-space: pre-wrap;
+
     overflow-x: auto;
+
+    line-height: 1.5;
 }
 
 .ocr-row {
     display: flex;
+
     justify-content: space-between;
+
     gap: 20px;
+
     padding: 10px 0;
+
     border-bottom: 1px solid #eee;
+}
+
+.ocr-row span:first-child {
+    word-break: break-word;
 }
 
 .ocr-row span:last-child {
     font-weight: 800;
+
     color: #059669;
+
+    white-space: nowrap;
 }
+
+/* ----------------------------------------
+   FOOTER
+---------------------------------------- */
 
 footer {
     text-align: center;
+
     color: #6b7280;
+
     padding: 20px;
+
     font-size: 13px;
 }
+
+/* ----------------------------------------
+   MOBILE
+---------------------------------------- */
 
 @media (max-width: 700px) {
 
@@ -300,10 +481,27 @@ footer {
 
     .result-header {
         align-items: flex-start;
+
+        gap: 15px;
     }
 
     .score {
         font-size: 28px;
     }
 
+    .rule-main {
+        flex-direction: column;
+
+        gap: 5px;
+    }
+
+    .ocr-row {
+        flex-direction: column;
+
+        gap: 5px;
+    }
+
+    .pdf-button {
+        width: 100%;
+    }
 }

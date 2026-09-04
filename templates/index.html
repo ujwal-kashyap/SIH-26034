@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
@@ -29,6 +28,8 @@
 <div class="container">
 
 
+    <!-- HEADER -->
+
     <header>
 
         <div>
@@ -52,6 +53,8 @@
     </header>
 
 
+    <!-- SCAN FORM -->
+
     <section class="card">
 
         <h2>
@@ -74,9 +77,7 @@
 
                 {% for key, name in categories.items() %}
 
-                    <option
-                        value="{{ key }}"
-                    >
+                    <option value="{{ key }}">
                         {{ name }}
                     </option>
 
@@ -98,9 +99,7 @@
 
 
             <button type="submit">
-
                 Scan Product
-
             </button>
 
         </form>
@@ -121,6 +120,8 @@
     </section>
 
 
+    <!-- ERROR -->
+
     {% if error %}
 
         <section class="card error">
@@ -137,6 +138,8 @@
 
     {% endif %}
 
+
+    <!-- RESULTS -->
 
     {% if result %}
 
@@ -158,6 +161,7 @@
                     </h2>
 
                 </div>
+
 
                 <div class="score">
 
@@ -241,6 +245,20 @@
 
             </div>
 
+
+            <!-- PDF DOWNLOAD -->
+
+            <div class="pdf-action">
+
+                <a
+                    href="{{ url_for('download_report', scan_id=result['scan_id']) }}"
+                    class="pdf-button"
+                >
+                    Download PDF Report
+                </a>
+
+            </div>
+
         </section>
 
 
@@ -264,7 +282,7 @@
                         </span>
 
 
-                        {% if field.value %}
+                        {% if field and field.value %}
 
                             <strong>
                                 {{ field.value }}
@@ -313,6 +331,8 @@
                         rule-good
                     {% elif item.status == 'REVIEW' %}
                         rule-review
+                    {% elif item.status == 'VIOLATION' %}
+                        rule-violation
                     {% else %}
                         rule-neutral
                     {% endif %}"
@@ -331,7 +351,7 @@
                     </div>
 
 
-                    <div>
+                    <div class="rule-status">
 
                         {% if item.status == "DETECTED" %}
 
@@ -343,6 +363,12 @@
 
                             <b class="review">
                                 REVIEW
+                            </b>
+
+                        {% elif item.status == "VIOLATION" %}
+
+                            <b class="violation">
+                                VIOLATION
                             </b>
 
                         {% else %}
@@ -361,7 +387,7 @@
                     </p>
 
 
-                    {% if item.value %}
+                    {% if item.evidence %}
 
                         <div class="evidence">
 
@@ -382,7 +408,7 @@
         </section>
 
 
-        <!-- OCR -->
+        <!-- OCR EVIDENCE -->
 
         <section class="card">
 
@@ -395,7 +421,7 @@
         </section>
 
 
-        <!-- OCR DETAILS -->
+        <!-- OCR CONFIDENCE -->
 
         <section class="card">
 
@@ -429,6 +455,8 @@
 
     {% endif %}
 
+
+    <!-- FOOTER -->
 
     <footer>
 

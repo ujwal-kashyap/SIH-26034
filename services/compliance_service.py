@@ -1,3 +1,4 @@
+import re
 from rules.rules import (
     RULES,
     CATEGORY_MAP
@@ -13,7 +14,150 @@ def field_status(field):
         "status",
         "NOT_DETECTED"
     )
+def validate_field(field, rule):
+    """
+    Validate whether a detected field is actually compliant.
+    Returns:
+        (status, message)
+    """
 
+    if not field:
+        if rule.get("required", False):
+            return (
+                "REVIEW",
+                f'{rule["name"]} was not reliably detected.'
+            )
+
+        return (
+            "NOT_DETECTED",
+            f'{rule["name"]} was not detected.'
+        )
+
+    status = field_status(field)
+
+    if status in ["REVIEW", "LOW_CONFIDENCE"]:
+        return (
+            "REVIEW",
+            f'{rule["name"]} could not be confirmed with sufficient OCR confidence.'
+        )
+
+    # ----------------------------------------------------
+    # Actual field-specific validation
+    # ----------------------------------------------------
+
+    value = str(
+        field.get("value", "")
+    ).strip()
+
+    # MRP
+    if rule["field"] == "MRP":
+
+        try:
+            price = float(
+                re.sub(
+                    r"[^\d.]",
+                    "",
+                    value
+                )
+            )
+
+            if price <= 0:
+                return (
+                    "VIOLATION",
+                    "MRP must be greater than zero."
+                )
+
+        except ValueError:
+
+            return (
+                "VIOLATION",
+                "MRP format could not be validated."
+            )
+
+    # Net Quantity
+    elif rule["field"] == "Net Quantity":
+
+        if not re.search(
+            r"\d+(?:\.\d+)?\s*(?:KG|G|GM|MG|ML|L)\b",
+            value,
+            re.IGNORECASE
+        ):
+            return (
+                "VIOLATION",
+                "Net Quantity format could not be validated."
+            )
+
+    # Manufacturer
+    elif rule["field"] == "Manufacturer":
+
+        if len(value) < 3:
+            return (
+                "VIOLATION",
+                "Manufacturer / Packer / Importer declaration is invalid."
+            )
+
+    # Address
+    elif rule["field"] == "Address":
+
+        if len(value) < 10:
+            return (
+                "VIOLATION",
+                "Address declaration appears incomplete."
+            )
+
+    # Manufacturing Date
+    elif rule["field"] == "Manufacturing Date":
+
+        if not re.search(
+            r"\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}",
+            value
+        ):
+            return (
+                "VIOLATION",
+                "Manufacturing date format could not be validated."
+            )
+
+    # Consumer Care
+    elif rule["field"] == "Consumer Care":
+
+        if not re.search(
+            r"@|(?:\+?\d[\d\s\-]{7,18}\d)",
+            value,
+            re.IGNORECASE
+        ):
+            return (
+                "VIOLATION",
+                "Consumer Care details could not be validated."
+            )
+
+    # Unit Sale Price
+    elif rule["field"] == "Unit Sale Price":
+
+        if not re.search(
+            r"\d+(?:\.\d+)?",
+            value
+        ):
+            return (
+                "VIOLATION",
+                "Unit Sale Price format could not be validated."
+            )
+
+    # FSSAI
+    elif rule["field"] == "FSSAI":
+
+        if not re.fullmatch(
+            r"\d{10,14}",
+            value
+        ):
+            return (
+                "VIOLATION",
+                "FSSAI licence number format appears invalid."
+            )
+
+    return (
+        "DETECTED",
+        f'{rule["name"]} detected and basic validation passed.'
+    )
 
 def run_compliance(
     detected,
@@ -50,9 +194,10 @@ def run_compliance(
             rule["field"]
         )
 
-        status = field_status(
-            field
-        )
+        status, message = validate_field(
+    field,
+    rule
+)
 
 
         # ----------------------------------------------

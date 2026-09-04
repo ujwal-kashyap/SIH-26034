@@ -145,7 +145,7 @@ RULES = {
 }
 
 
-CATEGORY_MAP = {
+CATEGORY_MAP = {    
 
     "general":
         "general",

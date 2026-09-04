@@ -624,7 +624,6 @@ def looks_like_company(text):
 # ============================================================
 # ADDRESS
 # ============================================================
-
 def extract_address(items):
 
     label_patterns = [
@@ -642,110 +641,104 @@ def extract_address(items):
     if item is None:
         return not_detected()
 
-    address_parts = []
-
     # --------------------------------------------------------
-    # Collect nearby address lines.
-    # Stop when another major label starts.
+    # Find the actual beginning of the address.
+    # Ignore OCR lines belonging to nutrition table.
     # --------------------------------------------------------
 
-    for j in range(
-        index,
-        min(index + 6, len(items))
-    ):
+    address_start = None
 
-        text = clean(
-            items[j]["text"]
-        )
+    for j in range(index + 1, min(index + 10, len(items))):
+
+        text = clean(items[j]["text"])
 
         if not text:
             continue
 
-        if j == index:
-
-            # Remove label
-            remainder = re.sub(
-                r"^(?:REGISTERED\s+OFFICE|"
-                r"REGISTERED\s+ADDRESS|"
-                r"ADDRESS|"
-                r"FACTORY)"
-                r"\s*[:\-]?\s*",
-                "",
-                text,
-                flags=re.IGNORECASE
-            )
-
-            remainder = clean(
-                remainder
-            )
-
-            if remainder:
-                address_parts.append(
-                    remainder
-                )
-
+        # Ignore nutrition labels and their values
+        if is_nutrition_line(text):
             continue
 
-        # Stop at unrelated major section
+        if re.fullmatch(
+            r"\d+(?:\.\d+)?",
+            text
+        ):
+            continue
+
+        # Company name immediately after REGISTERED OFFICE
+        # is valid, but don't start collecting it until
+        # actual address information appears.
+        if re.search(
+            r"\b(?:PLOT|NO\.?|SECTOR|ROAD|RD|STREET|ST|"
+            r"FLOOR|TOWER|BUILDING|PARK|LANE|"
+            r"GURUGRAM|DELHI|MUMBAI|HARYANA|"
+            r"MAHARASHTRA|INDIA|PIN|"
+            r"\d{6})\b",
+            text,
+            re.IGNORECASE
+        ):
+            address_start = j
+            break
+
+    if address_start is None:
+        return not_detected()
+
+    # --------------------------------------------------------
+    # Collect address lines from the actual address start.
+    # --------------------------------------------------------
+
+    address_parts = []
+
+    for j in range(
+        address_start,
+        min(address_start + 6, len(items))
+    ):
+
+        text = clean(items[j]["text"])
+
+        if not text:
+            continue
+
+        # Stop when another declaration section begins
         if starts_new_section(text):
             break
 
         if is_nutrition_line(text):
             continue
 
-        # Avoid consuming random short OCR fragments
-        if len(text) < 4:
+        # Never include pure numeric nutrition values
+        if re.fullmatch(
+            r"\d+(?:\.\d+)?",
+            text
+        ):
             continue
 
-        address_parts.append(text)
+        # Stop at obvious next sections
+        if re.search(
+            r"^(?:FSSAI|CONSUMER\s+CARE|UNIT\s+SALE\s+PRICE|"
+            r"COUNTRY\s+OF\s+ORIGIN|MRP|NET\s+QUANTITY|"
+            r"BATCH\s+NO|MFG\s+DATE|USE\s+BY|BEST\s+BEFORE)",
+            text,
+            re.IGNORECASE
+        ):
+            break
 
-    # --------------------------------------------------------
-    # Extract only address-like content
-    # --------------------------------------------------------
+        address_parts.append({
+            "text": text,
+            "confidence": items[j]["confidence"]
+        })
 
     if not address_parts:
         return not_detected()
 
-    # In this label layout the address may span multiple lines.
-    # Keep useful address lines but stop before nutrition noise.
-    useful = []
-
-    for part in address_parts:
-
-        if is_nutrition_line(part):
-            break
-
-        if re.search(
-            r"\b(?:ROAD|RD|STREET|ST|SECTOR|PLOT|"
-            r"GURUGRAM|DELHI|MUMBAI|HARYANA|INDIA|"
-            r"FLOOR|TOWER|PARK|NO\.)\b",
-            part,
-            re.IGNORECASE
-        ):
-            useful.append(part)
-
-    if not useful:
-        useful = address_parts
-
     value = " ".join(
-        clean(x)
-        for x in useful
+        part["text"]
+        for part in address_parts
     )
 
-    confidence_values = [
-        item["confidence"]
-    ]
-
-    for j in range(
-        index + 1,
-        min(index + len(useful) + 1, len(items))
-    ):
-        confidence_values.append(
-            items[j]["confidence"]
-        )
-
     confidence = min(
-        confidence_values
+        part["confidence"]
+        for part in address_parts
     )
 
     return make_field(
@@ -753,8 +746,6 @@ def extract_address(items):
         confidence,
         f"{item['text']} -> {value}"
     )
-
-
 def starts_new_section(text):
 
     upper = text.upper()
