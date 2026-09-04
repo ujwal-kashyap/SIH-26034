@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <title>
+        Legal Metrology Compliance Scanner
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
+</head>
+
+
+<body>
+
+
+<div class="container">
+
+
+    <header>
+
+        <div>
+
+            <div class="eyebrow">
+                SIH26034
+            </div>
+
+            <h1>
+                Packaged Commodity
+                Compliance Scanner
+            </h1>
+
+            <p>
+                AI-assisted OCR screening
+                for packaged commodity declarations.
+            </p>
+
+        </div>
+
+    </header>
+
+
+    <section class="card">
+
+        <h2>
+            Scan Product
+        </h2>
+
+        <form
+            method="POST"
+            enctype="multipart/form-data"
+        >
+
+            <label>
+                Product Category
+            </label>
+
+            <select
+                name="category"
+                required
+            >
+
+                {% for key, name in categories.items() %}
+
+                    <option
+                        value="{{ key }}"
+                    >
+                        {{ name }}
+                    </option>
+
+                {% endfor %}
+
+            </select>
+
+
+            <label>
+                Package Image
+            </label>
+
+            <input
+                type="file"
+                name="image"
+                accept="image/jpeg,image/png,image/webp"
+                required
+            >
+
+
+            <button type="submit">
+
+                Scan Product
+
+            </button>
+
+        </form>
+
+
+        <div class="notice">
+
+            <strong>
+                Tip:
+            </strong>
+
+            Photograph the package straight-on
+            in good lighting and ensure declaration
+            text is readable.
+
+        </div>
+
+    </section>
+
+
+    {% if error %}
+
+        <section class="card error">
+
+            <strong>
+                Scan Error
+            </strong>
+
+            <p>
+                {{ error }}
+            </p>
+
+        </section>
+
+    {% endif %}
+
+
+    {% if result %}
+
+
+        <!-- SUMMARY -->
+
+        <section class="card">
+
+            <div class="result-header">
+
+                <div>
+
+                    <div class="eyebrow">
+                        SCREENING RESULT
+                    </div>
+
+                    <h2>
+                        {{ result.summary.overall }}
+                    </h2>
+
+                </div>
+
+                <div class="score">
+
+                    {{ result.summary.detection_score }}%
+
+                    <small>
+                        detection
+                    </small>
+
+                </div>
+
+            </div>
+
+
+            <div class="stats">
+
+                <div>
+
+                    <strong>
+                        {{ result.summary.total }}
+                    </strong>
+
+                    <span>
+                        Checks
+                    </span>
+
+                </div>
+
+
+                <div class="green">
+
+                    <strong>
+                        {{ result.summary.detected }}
+                    </strong>
+
+                    <span>
+                        Detected
+                    </span>
+
+                </div>
+
+
+                <div class="yellow">
+
+                    <strong>
+                        {{ result.summary.review }}
+                    </strong>
+
+                    <span>
+                        Review
+                    </span>
+
+                </div>
+
+
+                <div class="red">
+
+                    <strong>
+                        {{ result.summary.not_detected }}
+                    </strong>
+
+                    <span>
+                        Not detected
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="notice">
+
+                <strong>
+                    Important:
+                </strong>
+
+                "Review" means the system could not
+                establish the declaration confidently.
+                It does not by itself establish a legal
+                violation.
+
+            </div>
+
+        </section>
+
+
+        <!-- DETECTED INFORMATION -->
+
+        <section class="card">
+
+            <h2>
+                Detected Declarations
+            </h2>
+
+
+            <div class="grid">
+
+                {% for name, field in result.detected.items() %}
+
+                    <div class="field">
+
+                        <span>
+                            {{ name }}
+                        </span>
+
+
+                        {% if field.value %}
+
+                            <strong>
+                                {{ field.value }}
+                            </strong>
+
+                            <small>
+
+                                Confidence:
+                                {{ "%.0f"|format(
+                                    field.confidence * 100
+                                ) }}%
+
+                            </small>
+
+                        {% else %}
+
+                            <strong class="muted">
+                                Not detected
+                            </strong>
+
+                        {% endif %}
+
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+        </section>
+
+
+        <!-- COMPLIANCE -->
+
+        <section class="card">
+
+            <h2>
+                Rule Screening
+            </h2>
+
+
+            {% for item in result.compliance %}
+
+                <div
+                    class="rule
+                    {% if item.status == 'DETECTED' %}
+                        rule-good
+                    {% elif item.status == 'REVIEW' %}
+                        rule-review
+                    {% else %}
+                        rule-neutral
+                    {% endif %}"
+                >
+
+                    <div class="rule-main">
+
+                        <strong>
+                            {{ item.name }}
+                        </strong>
+
+                        <span>
+                            {{ item.reference }}
+                        </span>
+
+                    </div>
+
+
+                    <div>
+
+                        {% if item.status == "DETECTED" %}
+
+                            <b class="good">
+                                DETECTED
+                            </b>
+
+                        {% elif item.status == "REVIEW" %}
+
+                            <b class="review">
+                                REVIEW
+                            </b>
+
+                        {% else %}
+
+                            <b class="neutral">
+                                NOT DETECTED
+                            </b>
+
+                        {% endif %}
+
+                    </div>
+
+
+                    <p>
+                        {{ item.message }}
+                    </p>
+
+
+                    {% if item.value %}
+
+                        <div class="evidence">
+
+                            <strong>
+                                Evidence:
+                            </strong>
+
+                            {{ item.evidence }}
+
+                        </div>
+
+                    {% endif %}
+
+                </div>
+
+            {% endfor %}
+
+        </section>
+
+
+        <!-- OCR -->
+
+        <section class="card">
+
+            <h2>
+                OCR Evidence
+            </h2>
+
+            <pre>{{ result.raw_text }}</pre>
+
+        </section>
+
+
+        <!-- OCR DETAILS -->
+
+        <section class="card">
+
+            <h2>
+                OCR Confidence Details
+            </h2>
+
+
+            {% for item in result.ocr_items %}
+
+                <div class="ocr-row">
+
+                    <span>
+                        {{ item.text }}
+                    </span>
+
+                    <span>
+
+                        {{ "%.0f"|format(
+                            item.confidence * 100
+                        ) }}%
+
+                    </span>
+
+                </div>
+
+            {% endfor %}
+
+        </section>
+
+
+    {% endif %}
+
+
+    <footer>
+
+        Automated screening only.
+        Final legal determination requires
+        verification by an authorized official.
+
+    </footer>
+
+
+</div>
+
+
+</body>
+
+</html>
