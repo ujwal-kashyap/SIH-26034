@@ -412,7 +412,24 @@ def is_label_only(text):
         "sodium (mg)"
     }
 
-    return value in labels
+    if value in labels:
+        return True
+
+    # FIX: fuzzy match for the FSSAI logo, which OCR frequently
+    # misreads as "Jssai", "Lssai", "Essai", etc. because of its
+    # stylised font. Without this, a misread logo line could
+    # leak into any field that uses is_label_only() to filter
+    # candidate values (MRP, quantity, manufacturer, country...),
+    # not just address.
+    if re.fullmatch(r"[a-z]ssai\.?", value):
+        return True
+
+    # FIX: "LIC NO" / "LIC. NO." / "LICENCE NO" with no number
+    # attached is a label, not a value.
+    if re.fullmatch(r"lic\.?\s*no\.?|licen[cs]e\s*no\.?", value):
+        return True
+
+    return False
 
 
 # ============================================================
@@ -453,7 +470,26 @@ def extract_mrp(items):
                     text
                 )
 
-    return not_detected()
+    # --------------------------------------------------------
+    # FIX: fallback for MRP label and value split across
+    # separate OCR boxes, e.g.:
+    #   MRP
+    #   : 25.00
+    # This is common on real packaging where the label and
+    # its value are printed with enough horizontal/vertical
+    # gap that the OCR text detector groups them as two
+    # separate lines even though a human reads them as one
+    # declaration. Mirrors the existing fallback pattern
+    # already used by extract_manufacturer / extract_address.
+    # --------------------------------------------------------
+
+    return get_value_after_label(
+        items,
+        label_patterns=[r"\bMRP\b"],
+        value_patterns=[
+            r"((?:RS\.?|INR)?\s*[₹]?\s*\d+(?:\.\d{1,2})?)"
+        ]
+    )
 
 
 # ============================================================
@@ -495,7 +531,21 @@ def extract_quantity(items):
                     text
                 )
 
-    return not_detected()
+    # --------------------------------------------------------
+    # FIX: fallback for Net Quantity label and value split
+    # across separate OCR boxes, e.g.:
+    #   NET QUANTITY
+    #   : 45 g
+    # See extract_mrp() above for why this happens.
+    # --------------------------------------------------------
+
+    return get_value_after_label(
+        items,
+        label_patterns=[r"(?:NET\s*)?(?:QUANTITY|WEIGHT|WT)\b"],
+        value_patterns=[
+            r"(\d+(?:\.\d+)?\s*(?:KG|G|GM|MG|ML|L))\b"
+        ]
+    )
 
 
 # ============================================================
@@ -699,7 +749,10 @@ def extract_address(items):
         if not text:
             continue
 
-        # Stop when another declaration section begins
+        # Stop when another declaration section begins.
+        # (This is the single, canonical stop-check -- see the
+        # FIX note on starts_new_section() below for why the
+        # old second/duplicate regex here was removed.)
         if starts_new_section(text):
             break
 
@@ -712,16 +765,6 @@ def extract_address(items):
             text
         ):
             continue
-
-        # Stop at obvious next sections
-        if re.search(
-            r"^(?:FSSAI|CONSUMER\s+CARE|UNIT\s+SALE\s+PRICE|"
-            r"COUNTRY\s+OF\s+ORIGIN|MRP|NET\s+QUANTITY|"
-            r"BATCH\s+NO|MFG\s+DATE|USE\s+BY|BEST\s+BEFORE)",
-            text,
-            re.IGNORECASE
-        ):
-            break
 
         address_parts.append({
             "text": text,
@@ -747,28 +790,69 @@ def extract_address(items):
         f"{item['text']} -> {value}"
     )
 def starts_new_section(text):
+    """
+    Detects whether a line marks the start of a new
+    declaration/section, so multi-line collectors (like
+    extract_address) know where to stop.
+
+    FIX: this previously did a plain substring check against a
+    fixed label list, which missed two real cases seen in OCR
+    output:
+
+    1. "LIC NO" / "LIC. NO." was not in the list at all, so a
+       line like "Lic. No. 10018064001234" was treated as more
+       address text instead of a new section.
+
+    2. The FSSAI logo is a heavily stylised wordmark, and OCR
+       very commonly misreads it as "Jssai", "Lssai", "Essai",
+       etc. (a single leading letter + "SSAI"). Matching only
+       the literal string "FSSAI" missed these misreads
+       entirely, so "Jssai" was being appended to the address
+       as if it were ordinary text.
+
+    Now uses regex patterns (including a fuzzy pattern for the
+    FSSAI logo) instead of exact substrings.
+    """
 
     upper = text.upper()
 
-    section_labels = [
-        "NUTRITIONAL INFORMATION",
-        "CONSUMER CARE",
-        "COUNTRY OF ORIGIN",
-        "UNIT SALE PRICE",
-        "MRP",
-        "NET QUANTITY",
-        "INGREDIENTS",
-        "BATCH NO",
-        "MFG",
-        "MFD",
-        "USE BY",
-        "BEST BEFORE",
-        "FSSAI"
+    section_patterns = [
+        r"NUTRITIONAL\s+INFORMATION",
+        r"(?:CONSUMER|CUSTOMER)\s+CARE",
+        r"COUNTRY\s+OF\s+ORIGIN",
+        r"UNIT\s+(?:SALE|SELLING)\s+PRICE",
+        r"\bMRP\b",
+        r"NET\s+(?:QUANTITY|WEIGHT|WT)\b",
+        r"\bINGREDIENTS\b",
+        r"BATCH\s*NO",
+        r"\bMFG\b",
+        r"\bMFD\b",
+        r"USE\s+BY",
+        r"BEST\s+BEFORE",
+        r"EXPIR(?:Y|ATION)",
+
+        # FIX: "LIC NO" / "LIC. NO." was missing entirely.
+        r"LIC\s*\.?\s*NO",
+        r"LICEN[CS]E\s+NO",
+
+        # FIX: fuzzy match for the FSSAI logo -- catches common
+        # OCR misreads (JSSAI, LSSAI, ESSAI, ...), not just the
+        # literal string "FSSAI".
+        r"\b[A-Z]SSAI\b",
+
+        r"MADE\s+IN\b",
+        r"PRODUCT\s+OF\b",
+
+        # A second "REGISTERED OFFICE" / "ADDRESS" style label
+        # showing up mid-collection means we've wandered into an
+        # unrelated block -- also treat it as a new section.
+        r"REGISTERED\s+OFFICE",
+        r"REGISTERED\s+ADDRESS",
     ]
 
     return any(
-        label in upper
-        for label in section_labels
+        re.search(pattern, upper)
+        for pattern in section_patterns
     )
 
 
@@ -994,75 +1078,25 @@ def extract_commodity(items):
         )
 
     # --------------------------------------------------------
-    # 3. Search first few lines for likely commodity
+    # FIX: step 3 used to scan the first 12 OCR lines for any
+    # line containing a "food word" (POTATO, OIL, RICE, SALT,
+    # SUGAR...) and return that whole line as the commodity
+    # name. This had no way to distinguish an actual product
+    # name from a line inside the INGREDIENTS list -- e.g.
+    # "Rice, Corn Grits, Edible Vegetable Oil" matched "OIL"
+    # and was returned as the commodity name, which is wrong on
+    # its face (it's an ingredients sentence, not a product
+    # name) and is exactly the reported bug.
+    #
+    # There's no reliable, non-guessing way to tell a genuine
+    # product-name line apart from ordinary body text once we
+    # drop below an explicit label (step 1) or the specific,
+    # narrow POTATO+CHIPS pattern (step 2) -- both of which
+    # only fire on real evidence, not keyword-sniffing across
+    # unrelated sentences. Per the requirement that this field
+    # must return NOT_DETECTED rather than guess, step 3 is
+    # removed rather than patched.
     # --------------------------------------------------------
-
-    candidates = []
-
-    for item in items[:12]:
-
-        text = clean(
-            item["text"]
-        )
-
-        if not text:
-            continue
-
-        upper = text.upper()
-
-        ignored = [
-            "INGREDIENTS",
-            "MANUFACTURED",
-            "MRP",
-            "NUTRITIONAL",
-            "PER 100G",
-            "REGISTERED OFFICE",
-            "CONSUMER CARE",
-            "UNIT SALE PRICE"
-        ]
-
-        if any(
-            x in upper
-            for x in ignored
-        ):
-            continue
-
-        if len(text) <= 2:
-            continue
-
-        candidates.append(item)
-
-    # Prefer food/product-looking terms
-    food_words = [
-        "POTATO",
-        "CHIPS",
-        "BISCUIT",
-        "BISCUITS",
-        "SNACK",
-        "NOODLES",
-        "RICE",
-        "FLOUR",
-        "OIL",
-        "SALT",
-        "SUGAR",
-        "SPICES",
-        "COOKIES"
-    ]
-
-    for item in candidates:
-
-        text_upper = item["text"].upper()
-
-        if any(
-            word in text_upper
-            for word in food_words
-        ):
-
-            return make_field(
-                item["text"],
-                item["confidence"],
-                item["text"]
-            )
 
     return not_detected()
 
@@ -1109,6 +1143,46 @@ def extract_manufacturing_date(items):
                     item["confidence"],
                     item["text"]
                 )
+
+    # --------------------------------------------------------
+    # FIX: fallback for label and date split across separate
+    # OCR boxes, e.g.:
+    #   MFG. DATE
+    #   : 20/06/2024
+    # Mirrors the existing "USE BY" fallback already present
+    # in extract_best_before() below.
+    # --------------------------------------------------------
+
+    for i, item in enumerate(items):
+
+        if re.search(
+            r"\b(?:MFG|MFD)\b",
+            item["text"],
+            re.IGNORECASE
+        ):
+
+            for j in range(
+                i + 1,
+                min(i + 3, len(items))
+            ):
+
+                match = re.search(
+                    r"(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})",
+                    items[j]["text"]
+                )
+
+                if match:
+
+                    confidence = min(
+                        item["confidence"],
+                        items[j]["confidence"]
+                    )
+
+                    return make_field(
+                        match.group(1),
+                        confidence,
+                        f"{item['text']} -> {items[j]['text']}"
+                    )
 
     return not_detected()
 
