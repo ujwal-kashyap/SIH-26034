@@ -46,6 +46,18 @@ from services.compliance_service import (
     summary
 )
 
+# ============================================================
+# FONT COMPLIANCE SERVICE
+# ============================================================
+# IMPORTANT:
+# File must be:
+#
+# services/font_compliance_service.py
+#
+# ============================================================
+
+from services.font_compliance_service import run_font_screening
+
 
 # ============================================================
 # FLASK APP
@@ -66,21 +78,11 @@ os.makedirs(
 # ============================================================
 
 CATEGORIES = {
-
-    "general":
-        "General Packaged Commodity",
-
-    "packaged_food":
-        "Packaged Food",
-
-    "snacks":
-        "Snacks",
-
-    "edible_oil":
-        "Edible Oil",
-
-    "cosmetics":
-        "Cosmetics"
+    "general": "General Packaged Commodity",
+    "packaged_food": "Packaged Food",
+    "snacks": "Snacks",
+    "edible_oil": "Edible Oil",
+    "cosmetics": "Cosmetics"
 }
 
 
@@ -131,9 +133,9 @@ def generate_pdf(result):
 
     elements = []
 
-    # --------------------------------------------------------
+    # ========================================================
     # TITLE
-    # --------------------------------------------------------
+    # ========================================================
 
     elements.append(
         Paragraph(
@@ -166,9 +168,9 @@ def generate_pdf(result):
         Spacer(1, 15)
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # SUMMARY
-    # --------------------------------------------------------
+    # ========================================================
 
     s = result["summary"]
 
@@ -180,30 +182,12 @@ def generate_pdf(result):
     )
 
     summary_data = [
-        [
-            "Total Checks",
-            str(s["total"])
-        ],
-        [
-            "Detected",
-            str(s["detected"])
-        ],
-        [
-            "Review",
-            str(s["review"])
-        ],
-        [
-            "Not Detected",
-            str(s["not_detected"])
-        ],
-        [
-            "Detection Score",
-            f"{s['detection_score']}%"
-        ],
-        [
-            "Overall",
-            str(s["overall"])
-        ]
+        ["Total Checks", str(s["total"])],
+        ["Detected", str(s["detected"])],
+        ["Review", str(s["review"])],
+        ["Not Detected", str(s["not_detected"])],
+        ["Detection Score", f"{s['detection_score']}%"],
+        ["Overall", str(s["overall"])]
     ]
 
     table = Table(
@@ -220,28 +204,24 @@ def generate_pdf(result):
                 0.5,
                 colors.grey
             ),
-
             (
                 "FONTNAME",
                 (0, 0),
                 (-1, -1),
                 "Helvetica"
             ),
-
             (
                 "FONTNAME",
                 (0, 0),
                 (0, -1),
                 "Helvetica-Bold"
             ),
-
             (
                 "VALIGN",
                 (0, 0),
                 (-1, -1),
                 "TOP"
             ),
-
             (
                 "PADDING",
                 (0, 0),
@@ -257,9 +237,9 @@ def generate_pdf(result):
         Spacer(1, 20)
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # DETECTED DECLARATIONS
-    # --------------------------------------------------------
+    # ========================================================
 
     elements.append(
         Paragraph(
@@ -297,10 +277,17 @@ def generate_pdf(result):
             "NOT_DETECTED"
         )
 
+        try:
+            confidence_percent = (
+                float(confidence) * 100
+            )
+        except (TypeError, ValueError):
+            confidence_percent = 0
+
         declaration_data.append([
             escape(str(name)),
             escape(str(value or "N/A")),
-            f"{float(confidence) * 100:.0f}%",
+            f"{confidence_percent:.0f}%",
             escape(str(status))
         ])
 
@@ -324,28 +311,24 @@ def generate_pdf(result):
                 0.5,
                 colors.grey
             ),
-
             (
                 "BACKGROUND",
                 (0, 0),
                 (-1, 0),
                 colors.lightgrey
             ),
-
             (
                 "FONTNAME",
                 (0, 0),
                 (-1, 0),
                 "Helvetica-Bold"
             ),
-
             (
                 "VALIGN",
                 (0, 0),
                 (-1, -1),
                 "TOP"
             ),
-
             (
                 "PADDING",
                 (0, 0),
@@ -361,9 +344,9 @@ def generate_pdf(result):
         Spacer(1, 20)
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # RULE SCREENING
-    # --------------------------------------------------------
+    # ========================================================
 
     elements.append(
         Paragraph(
@@ -388,8 +371,7 @@ def generate_pdf(result):
 
         elements.append(
             Paragraph(
-                f"<b>{rule_name}</b> — "
-                f"{rule_status}",
+                f"<b>{rule_name}</b> — {rule_status}",
                 styles["Normal"]
             )
         )
@@ -409,8 +391,7 @@ def generate_pdf(result):
 
             elements.append(
                 Paragraph(
-                    f"<b>Evidence:</b> "
-                    f"{evidence}",
+                    f"<b>Evidence:</b> {evidence}",
                     styles["Normal"]
                 )
             )
@@ -419,9 +400,350 @@ def generate_pdf(result):
             Spacer(1, 8)
         )
 
-    # --------------------------------------------------------
+    # ========================================================
+    # FONT SIZE / DIMENSION SCREENING
+    # ========================================================
+
+    elements.append(
+        Paragraph(
+            "Font Size & Dimensions",
+            styles["Heading2"]
+        )
+    )
+
+    elements.append(
+        Paragraph(
+            "OCR bounding-box measurements are shown below. "
+            "Physical millimetre compliance requires a "
+            "reliable image scale and principal display "
+            "panel area.",
+            styles["Normal"]
+        )
+    )
+
+    elements.append(
+        Spacer(1, 10)
+    )
+
+    font_screening = result.get(
+        "font_screening",
+        []
+    )
+
+    if not font_screening:
+
+        elements.append(
+            Paragraph(
+                "No font-size measurements were returned "
+                "by the font compliance service.",
+                styles["Normal"]
+            )
+        )
+
+    else:
+
+        font_data = [
+            [
+                "Declaration",
+                "Status",
+                "Width",
+                "Height",
+                "Physical",
+                "Required"
+            ]
+        ]
+
+        for item in font_screening:
+
+            field = str(
+                item.get(
+                    "field",
+                    "Unknown"
+                )
+            )
+
+            status = str(
+                item.get(
+                    "status",
+                    "REVIEW"
+                )
+            )
+
+            width_px = item.get(
+                "width_px"
+            )
+
+            height_px = item.get(
+                "height_px"
+            )
+
+            height_mm = item.get(
+                "height_mm"
+            )
+
+            required_mm = item.get(
+                "required_mm"
+            )
+
+            # ------------------------------------------------
+            # If service stores dimensions inside evidence,
+            # calculate representative values.
+            # ------------------------------------------------
+
+            evidence = item.get(
+                "evidence",
+                []
+            )
+
+            if evidence:
+
+                widths = []
+                heights = []
+
+                for evidence_item in evidence:
+
+                    w = evidence_item.get(
+                        "width_px"
+                    )
+
+                    h = evidence_item.get(
+                        "height_px"
+                    )
+
+                    if w is not None:
+
+                        try:
+                            widths.append(
+                                float(w)
+                            )
+                        except (
+                            TypeError,
+                            ValueError
+                        ):
+                            pass
+
+                    if h is not None:
+
+                        try:
+                            heights.append(
+                                float(h)
+                            )
+                        except (
+                            TypeError,
+                            ValueError
+                        ):
+                            pass
+
+                if width_px is None and widths:
+
+                    width_px = sum(widths) / len(widths)
+
+                if height_px is None and heights:
+
+                    height_px = sum(heights) / len(heights)
+
+            width_text = (
+                f"{float(width_px):.2f} px"
+                if width_px is not None
+                else "N/A"
+            )
+
+            height_text = (
+                f"{float(height_px):.2f} px"
+                if height_px is not None
+                else "N/A"
+            )
+
+            physical_text = (
+                f"{float(height_mm):.2f} mm"
+                if height_mm is not None
+                else "N/A"
+            )
+
+            required_text = (
+                f"{float(required_mm):.2f} mm"
+                if required_mm is not None
+                else "N/A"
+            )
+
+            font_data.append([
+                escape(field),
+                escape(status),
+                width_text,
+                height_text,
+                physical_text,
+                required_text
+            ])
+
+        font_table = Table(
+            font_data,
+            colWidths=[
+                105,
+                70,
+                70,
+                70,
+                75,
+                75
+            ],
+            repeatRows=1
+        )
+
+        font_table.setStyle(
+            TableStyle([
+                (
+                    "GRID",
+                    (0, 0),
+                    (-1, -1),
+                    0.5,
+                    colors.grey
+                ),
+                (
+                    "BACKGROUND",
+                    (0, 0),
+                    (-1, 0),
+                    colors.lightgrey
+                ),
+                (
+                    "FONTNAME",
+                    (0, 0),
+                    (-1, 0),
+                    "Helvetica-Bold"
+                ),
+                (
+                    "VALIGN",
+                    (0, 0),
+                    (-1, -1),
+                    "TOP"
+                ),
+                (
+                    "FONTSIZE",
+                    (0, 0),
+                    (-1, -1),
+                    7
+                ),
+                (
+                    "PADDING",
+                    (0, 0),
+                    (-1, -1),
+                    4
+                )
+            ])
+        )
+
+        elements.append(font_table)
+
+        elements.append(
+            Spacer(1, 15)
+        )
+
+        # ----------------------------------------------------
+        # FONT EVIDENCE
+        # ----------------------------------------------------
+
+        for item in font_screening:
+
+            field = escape(
+                str(
+                    item.get(
+                        "field",
+                        "Unknown"
+                    )
+                )
+            )
+
+            status = escape(
+                str(
+                    item.get(
+                        "status",
+                        "REVIEW"
+                    )
+                )
+            )
+
+            message = escape(
+                str(
+                    item.get(
+                        "message",
+                        ""
+                    )
+                )
+            )
+
+            elements.append(
+                Paragraph(
+                    f"<b>{field}</b> — {status}",
+                    styles["Normal"]
+                )
+            )
+
+            if message:
+
+                elements.append(
+                    Paragraph(
+                        message,
+                        styles["Normal"]
+                    )
+                )
+
+            for evidence_item in item.get(
+                "evidence",
+                []
+            ):
+
+                evidence_text = escape(
+                    str(
+                        evidence_item.get(
+                            "text",
+                            ""
+                        )
+                    )
+                )
+
+                width = evidence_item.get(
+                    "width_px",
+                    "N/A"
+                )
+
+                height = evidence_item.get(
+                    "height_px",
+                    "N/A"
+                )
+
+                confidence = evidence_item.get(
+                    "confidence",
+                    0
+                )
+
+                try:
+
+                    confidence_percent = (
+                        float(confidence) * 100
+                    )
+
+                except (
+                    TypeError,
+                    ValueError
+                ):
+
+                    confidence_percent = 0
+
+                elements.append(
+                    Paragraph(
+                        f"Evidence: {evidence_text} "
+                        f"— {width} × {height} px "
+                        f"— Confidence: "
+                        f"{confidence_percent:.0f}%",
+                        styles["Normal"]
+                    )
+                )
+
+            elements.append(
+                Spacer(1, 7)
+            )
+
+    # ========================================================
     # OCR EVIDENCE
-    # --------------------------------------------------------
+    # ========================================================
 
     elements.append(
         Paragraph(
@@ -432,11 +754,14 @@ def generate_pdf(result):
 
     for item in result["ocr_items"]:
 
-        text = str(
-            item.get("text", "")
+        text = escape(
+            str(
+                item.get(
+                    "text",
+                    ""
+                )
+            )
         )
-
-        text = escape(text)
 
         if text:
 
@@ -451,9 +776,9 @@ def generate_pdf(result):
         Spacer(1, 15)
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # DISCLAIMER
-    # --------------------------------------------------------
+    # ========================================================
 
     elements.append(
         Paragraph(
@@ -464,9 +789,9 @@ def generate_pdf(result):
         )
     )
 
-    # --------------------------------------------------------
-    # BUILD PDF
-    # --------------------------------------------------------
+    # ========================================================
+    # BUILD
+    # ========================================================
 
     doc.build(elements)
 
@@ -506,40 +831,31 @@ def download_report(scan_id):
 
 @app.route(
     "/",
-    methods=[
-        "GET",
-        "POST"
-    ]
+    methods=["GET", "POST"]
 )
 def index():
 
     result = None
-
     error = None
-
-    # ========================================================
-    # POST
-    # ========================================================
 
     if request.method == "POST":
 
-        # ----------------------------------------------------
+        # ====================================================
         # CATEGORY
-        # ----------------------------------------------------
+        # ====================================================
 
         category = request.form.get(
             "category",
             "general"
         )
 
-        # Make sure category is valid
         if category not in CATEGORIES:
 
             category = "general"
 
-        # ----------------------------------------------------
+        # ====================================================
         # FILE
-        # ----------------------------------------------------
+        # ====================================================
 
         file = request.files.get(
             "image"
@@ -570,12 +886,18 @@ def index():
             try:
 
                 # =================================================
-                # UNIQUE SCAN ID
+                # ORIGINAL FILE
                 # =================================================
 
                 original_name = secure_filename(
                     file.filename
                 )
+
+                if "." not in original_name:
+
+                    raise ValueError(
+                        "Invalid uploaded file."
+                    )
 
                 extension = (
                     original_name
@@ -586,10 +908,14 @@ def index():
                     .lower()
                 )
 
+                # =================================================
+                # SCAN ID
+                # =================================================
+
                 scan_id = uuid.uuid4().hex
 
                 # =================================================
-                # FILE PATHS
+                # PATHS
                 # =================================================
 
                 raw_path = os.path.join(
@@ -603,7 +929,7 @@ def index():
                 )
 
                 # =================================================
-                # SAVE ORIGINAL IMAGE
+                # SAVE ORIGINAL
                 # =================================================
 
                 file.save(
@@ -634,12 +960,12 @@ def index():
                 if not ocr_items:
 
                     raise ValueError(
-                        "No readable text was "
-                        "detected in the image."
+                        "No readable text was detected "
+                        "in the image."
                     )
 
                 # =================================================
-                # EXTRACT INFORMATION
+                # INFORMATION EXTRACTION
                 # =================================================
 
                 detected = extract_information(
@@ -647,12 +973,35 @@ def index():
                 )
 
                 # =================================================
-                # COMPLIANCE CHECK
+                # NORMAL COMPLIANCE
                 # =================================================
 
                 compliance = run_compliance(
                     detected,
                     category
+                )
+
+                # =================================================
+                # FONT COMPLIANCE
+                # =================================================
+                #
+                # The service receives OCR boxes.
+                #
+                # At this stage:
+                #
+                # pixels_per_mm = None
+                #
+                # means physical mm conversion cannot be
+                # guaranteed unless your font service itself
+                # calculates/calibrates the image scale.
+                #
+                # =================================================
+
+                font_screening = run_font_screening(
+                    ocr_items=ocr_items,
+                    pdp_area_cm2=None,
+                    pixels_per_mm=None,
+                    formed=False
                 )
 
                 # =================================================
@@ -668,12 +1017,17 @@ def index():
                 # =================================================
 
                 raw_text = "\n".join(
-                    str(item.get("text", ""))
+                    str(
+                        item.get(
+                            "text",
+                            ""
+                        )
+                    )
                     for item in ocr_items
                 )
 
                 # =================================================
-                # RESULT
+                # FINAL RESULT
                 # =================================================
 
                 result = {
@@ -696,6 +1050,9 @@ def index():
                     "compliance":
                         compliance,
 
+                    "font_screening":
+                        font_screening,
+
                     "summary":
                         result_summary,
 
@@ -711,7 +1068,6 @@ def index():
                     result
                 )
 
-                # Add PDF path to result
                 result["pdf_path"] = pdf_path
 
             except Exception as exc:
@@ -725,7 +1081,7 @@ def index():
                 )
 
     # ========================================================
-    # RENDER PAGE
+    # HTML
     # ========================================================
 
     return render_template(
@@ -744,18 +1100,13 @@ def index():
 def too_large(error):
 
     return render_template(
-
         "index.html",
-
         categories=CATEGORIES,
-
         result=None,
-
         error=(
             "Image is too large. "
             "Maximum size is 10 MB."
         )
-
     ), 413
 
 

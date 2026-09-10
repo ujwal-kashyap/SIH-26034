@@ -21,12 +21,9 @@
 
 </head>
 
-
 <body>
 
-
 <div class="container">
-
 
     <!-- HEADER -->
 
@@ -139,10 +136,7 @@
     {% endif %}
 
 
-    <!-- RESULTS -->
-
     {% if result %}
-
 
         <!-- SUMMARY -->
 
@@ -246,8 +240,6 @@
             </div>
 
 
-            <!-- PDF DOWNLOAD -->
-
             <div class="pdf-action">
 
                 <a
@@ -270,7 +262,6 @@
                 Detected Declarations
             </h2>
 
-
             <div class="grid">
 
                 {% for name, field in result.detected.items() %}
@@ -280,7 +271,6 @@
                         <span>
                             {{ name }}
                         </span>
-
 
                         {% if field and field.value %}
 
@@ -314,14 +304,13 @@
         </section>
 
 
-        <!-- COMPLIANCE -->
+        <!-- RULE SCREENING -->
 
         <section class="card">
 
             <h2>
                 Rule Screening
             </h2>
-
 
             {% for item in result.compliance %}
 
@@ -408,6 +397,240 @@
         </section>
 
 
+        <!-- ================================================= -->
+        <!-- FONT SIZE & DIMENSIONS -->
+        <!-- ================================================= -->
+
+        <section class="card">
+
+            <h2>
+                Font Size & Dimensions
+            </h2>
+
+            <p class="font-intro">
+
+                OCR-based measurement of declaration
+                text regions.
+
+                Width and height are shown in pixels.
+                Physical millimetre measurement requires
+                image scale calibration.
+
+            </p>
+
+
+            <div class="font-grid">
+
+                {% for item in result.font_screening %}
+
+                    <div class="font-card">
+
+                        <!-- HEADER -->
+
+                        <div class="font-card-header">
+
+                            <strong>
+                                {{ item.field }}
+                            </strong>
+
+
+                            {% if item.status == "MEASURED" %}
+
+                                <span class="font-status measured">
+                                    MEASURED
+                                </span>
+
+                            {% elif item.status == "REVIEW" %}
+
+                                <span class="font-status review">
+                                    REVIEW
+                                </span>
+
+                            {% elif item.status == "COMPLIANT" %}
+
+                                <span class="font-status compliant">
+                                    COMPLIANT
+                                </span>
+
+                            {% elif item.status == "NON_COMPLIANT" %}
+
+                                <span class="font-status non-compliant">
+                                    NON-COMPLIANT
+                                </span>
+
+                            {% endif %}
+
+                        </div>
+
+
+                        {% if item.evidence %}
+
+                            <!-- DIMENSIONS -->
+
+                            <div class="dimension-grid">
+
+                                <div class="dimension-box">
+
+                                    <span>
+                                        Width
+                                    </span>
+
+                                    <strong>
+                                        {{ item.evidence[0].width_px }}
+                                        px
+                                    </strong>
+
+                                </div>
+
+
+                                <div class="dimension-box">
+
+                                    <span>
+                                        Height
+                                    </span>
+
+                                    <strong>
+                                        {{ item.height_px }}
+                                        px
+                                    </strong>
+
+                                </div>
+
+
+                                <div class="dimension-box">
+
+                                    <span>
+                                        Physical Height
+                                    </span>
+
+                                    <strong>
+
+                                        {% if item.height_mm is not none %}
+
+                                            {{ item.height_mm }} mm
+
+                                        {% else %}
+
+                                            N/A
+
+                                        {% endif %}
+
+                                    </strong>
+
+                                </div>
+
+
+                                <div class="dimension-box">
+
+                                    <span>
+                                        Required Height
+                                    </span>
+
+                                    <strong>
+
+                                        {% if item.required_mm is not none %}
+
+                                            {{ item.required_mm }} mm
+
+                                        {% else %}
+
+                                            N/A
+
+                                        {% endif %}
+
+                                    </strong>
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- ALL OCR MEASUREMENTS -->
+
+                            <div class="font-evidence">
+
+                                <strong>
+                                    OCR Measurement Evidence
+                                </strong>
+
+
+                                {% for evidence in item.evidence %}
+
+                                    <div class="measurement-row">
+
+                                        <span>
+                                            {{ evidence.text }}
+                                        </span>
+
+                                        <span>
+                                            {{ evidence.width_px }}
+                                            ×
+                                            {{ evidence.height_px }}
+                                            px
+                                        </span>
+
+                                        <span>
+                                            Confidence:
+                                            {{ "%.0f"|format(
+                                                evidence.confidence * 100
+                                            ) }}%
+                                        </span>
+
+                                    </div>
+
+                                {% endfor %}
+
+                            </div>
+
+
+                        {% else %}
+
+                            <div class="font-not-found">
+
+                                Declaration text could not
+                                be located with a usable
+                                OCR bounding box.
+
+                            </div>
+
+                        {% endif %}
+
+
+                        {% if item.message %}
+
+                            <p class="font-message">
+
+                                {{ item.message }}
+
+                            </p>
+
+                        {% endif %}
+
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+
+            <div class="font-warning">
+
+                <strong>
+                    Important:
+                </strong>
+
+                Pixel dimensions come directly from
+                OCR bounding boxes. Physical millimetre
+                measurements require a reliable image
+                scale such as a known reference object,
+                DPI information, or calibrated package
+                dimensions.
+
+            </div>
+
+        </section>
+
+
         <!-- OCR EVIDENCE -->
 
         <section class="card">
@@ -452,7 +675,6 @@
 
         </section>
 
-
     {% endif %}
 
 
@@ -466,9 +688,7 @@
 
     </footer>
 
-
 </div>
-
 
 </body>
 
